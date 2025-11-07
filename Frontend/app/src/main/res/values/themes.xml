@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WeatherDemo" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 상태바 보이게 하려면 전체화면 옵션 빼고 필요시 색만 지정 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,25 @@
+# Frontend
+Frontend/*.iml
+Frontend/.gradle
+Frontend/local.properties/
+Frontend/.idea/caches/
+Frontend/.idea/libraries/
+Frontend/.idea/modules.xml/
+Frontend/.idea/workspace.xml/
+Frontend/.idea/navEditor.xml/
+Frontend/.idea/assetWizardSettings.xml/
+Frontend/.DS_Store
+Frontend/build/
+Frontend/captures/
+Frontend/.externalNativeBuild
+Frontend/.cxx
+Frontend/local.properties
+
+# Backend
+Backend/.venv/
+Backend/__pycache__/
+Backend/garage/
+Backend/output/
+Backend/*.pyc
+Backend/*.ipynb
+Backend/.env
