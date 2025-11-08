@@ -10,10 +10,12 @@ data class GenerateRequest(
 )
 
 data class GenerateResponse(
+    val jobId: String? = null,
     val downloadUrl: String // 백엔드가 반환하는 mp4 다운로드 URL
 )
 
 interface ApiService {
+    // FastAPI 서버 app.py의 /generateVideo 와 매핑
     @POST("generateVideo")
     suspend fun generateVideo(@Body req: GenerateRequest): GenerateResponse
 }

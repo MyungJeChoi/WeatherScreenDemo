@@ -16,51 +16,27 @@ class LoopVideoWallpaperService : WallpaperService() {
     inner class VideoEngine : Engine() {
         private var player: ExoPlayer? = null
 
-        override fun onSurfaceCreated(holder: SurfaceHolder) {
-            super.onSurfaceCreated(holder)
-            startPlayer(holder)
-        }
-
-        override fun onVisibilityChanged(visible: Boolean) {
-            super.onVisibilityChanged(visible)
-            player?.playWhenReady = visible
-        }
-
-        override fun onSurfaceDestroyed(holder: SurfaceHolder) {
-            releasePlayer()
-            super.onSurfaceDestroyed(holder)
+        override fun onCreate(surfaceHolder: SurfaceHolder) {
+            super.onCreate(surfaceHolder)
+            player = ExoPlayer.Builder(this@LoopVideoWallpaperService).build().apply {
+                repeatMode = Player.REPEAT_MODE_ALL
+                setVideoSurfaceHolder(surfaceHolder)
+            }
+            // 최신 비디오 경로를 읽어 미디어 설정
+            val file: File = runBlocking {
+                LatestVideoPathProvider.get(this@LoopVideoWallpaperService)
+                    ?.let { File(it) }
+                    ?.takeIf { it.exists() }
+                    ?: copyRawDemo()
+            }
+            val item = MediaItem.fromUri(file.toURI().toString().toUri())
+            player?.setMediaItem(item)
+            player?.prepare()
+            player?.playWhenReady = true
         }
 
         override fun onDestroy() {
-            releasePlayer()
             super.onDestroy()
-        }
-
-        private fun startPlayer(holder: SurfaceHolder) {
-            val ctx = this@LoopVideoWallpaperService
-
-            val videoFile: File = runBlocking {
-                // 1) 최신 경로 가져오기
-                val latest = LatestVideoPathProvider.get(ctx)
-                val f = latest?.let { File(it) }
-                when {
-                    f != null && f.exists() -> f
-                    else -> copyRawDemo() // 2) 없으면 동봉 demo.mp4로 폴백
-                }
-            }
-
-            // 3) ExoPlayer를 Surface에 '명시적으로' 연결
-            player = ExoPlayer.Builder(ctx).build().apply {
-                setVideoSurfaceHolder(holder)               // ★ 핵심: 검은 화면 방지
-                repeatMode = Player.REPEAT_MODE_ALL
-                volume = 0f
-                setMediaItem(MediaItem.fromUri(videoFile.toUri()))
-                prepare()
-                playWhenReady = true
-            }
-        }
-
-        private fun releasePlayer() {
             player?.release()
             player = null
         }

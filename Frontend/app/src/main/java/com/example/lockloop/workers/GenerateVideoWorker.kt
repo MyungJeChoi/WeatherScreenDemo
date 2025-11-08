@@ -4,18 +4,22 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.lockloop.data.PrefsRepository
-import com.example.lockloop.media.VideoPostProcessor
+import com.example.lockloop.media.transcodeToLockscreen
 import com.example.lockloop.network.ApiService
 import com.example.lockloop.network.GenerateRequest
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.File
 
+/**
+ * 1) 백엔드에 '생성' 요청
+ * 2) 반환된 downloadUrl에서 mp4 다운로드
+ * 3) 잠금화면 친화적으로 변환 후 경로 저장
+ */
 class GenerateVideoWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
 
@@ -23,59 +27,47 @@ class GenerateVideoWorker(appContext: Context, params: WorkerParameters) :
         val prefs = PrefsRepository(applicationContext)
         val u = prefs.flow.first()
 
-        // 1) 프롬프트 조합
-        val prompt = "Cast: ${u.cast}, Background: ${u.background}, Aspect: ${u.aspect}, Duration: ${u.durationSec}s"
+        // 1) Retrofit 생성 — 백엔드는 FastAPI 서버 (http://147.46.28.41:28410/)
+        val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
+        val ok = OkHttpClient.Builder().addInterceptor(logging).build()
 
-        // 2) 백엔드 호출 (Base URL은 본인 서버 주소로 교체)
-        val baseUrl = "https://YOUR-BACKEND/" // TODO: 교체
         val retrofit = Retrofit.Builder()
-            .baseUrl(baseUrl)
+            .baseUrl("http://147.46.28.41:28410/")
             .addConverterFactory(MoshiConverterFactory.create())
+            .client(ok)
             .build()
         val api = retrofit.create(ApiService::class.java)
 
-        val resp = try {
-            api.generateVideo(GenerateRequest(prompt, u.aspect, u.durationSec))
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // 데모 편의를 위해 백엔드가 없으면 videos/demo.mp4를 복사(테스트용)
-            val fallbackIn = copyRawDemo()
-            val out = File(applicationContext.filesDir, "videos/processed.mp4").apply { parentFile?.mkdirs() }
-            VideoPostProcessor.muteAndTranscode(applicationContext, fallbackIn, out)
-            prefs.setLatestVideo(out.absolutePath)
-            return Result.success()
+        // 프롬프트는 간단히 캐릭터+배경을 합쳐서 보냅니다(서버가 날씨 기반으로 보강).
+        val prompt = "${"$"}{u.cast} standing at ${"$"}{u.background}. Cinematic, loopable, minimal camera motion, no text."
+
+        val resp = api.generateVideo(
+            GenerateRequest(
+                prompt = prompt,
+                aspect = u.aspect,
+                durationSec = u.durationSec
+            )
+        )
+
+        // 2) 다운로드
+        val rawDir = File(applicationContext.filesDir, "raw").apply { mkdirs() }
+        val raw = File(rawDir, "lockscreen_raw.mp4")
+        val req = Request.Builder().url(resp.downloadUrl).build()
+        ok.newCall(req).execute().use { r ->
+            if (!r.isSuccessful) error("다운로드 실패: ${"$"}{r.code}")
+            r.body?.byteStream()?.use { input ->
+                raw.outputStream().use { output -> input.copyTo(output) }
+            } ?: error("응답 body 없음")
         }
 
-        // 3) mp4 다운로드
-        val inFile = withContext(Dispatchers.IO) {
-            val client = OkHttpClient()
-            val req = Request.Builder().url(resp.downloadUrl).build()
-            val res = client.newCall(req).execute()
-            val dir = File(applicationContext.filesDir, "videos").apply { mkdirs() }
-            val f = File(dir, "gen.mp4")
-            res.body?.byteStream().use { input ->
-                f.outputStream().use { output -> input?.copyTo(output) }
-            }
-            f
-        }
+        // 3) 후처리(Media3 Transformer) → files/lock/lockscreen.mp4
+        val outDir = File(applicationContext.filesDir, "lock").apply { mkdirs() }
+        val out = File(outDir, "lockscreen.mp4")
+        transcodeToLockscreen(applicationContext, raw, out)
 
-        // 4) 후처리 (무음+코덱)
-        val outFile = File(applicationContext.filesDir, "videos/processed.mp4")
-        VideoPostProcessor.muteAndTranscode(applicationContext, inFile, outFile)
-
-        // 5) 최신 경로 저장
-        prefs.setLatestVideo(outFile.absolutePath)
+        // 4) 경로 저장 (라이브 월페이퍼 서비스가 이 경로를 읽어 재생)
+        prefs.setLatestVideo(out.absolutePath)
 
         return Result.success()
-    }
-
-    private fun copyRawDemo(): File {
-        val out = File(applicationContext.filesDir, "raw/demo.mp4").apply { parentFile?.mkdirs() }
-        applicationContext.resources.openRawResource(
-            applicationContext.resources.getIdentifier("demo", "raw", applicationContext.packageName)
-        ).use { input ->
-            out.outputStream().use { output -> input.copyTo(output) }
-        }
-        return out
     }
 }

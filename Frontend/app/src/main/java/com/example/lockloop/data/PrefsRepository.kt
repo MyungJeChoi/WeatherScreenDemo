@@ -1,7 +1,10 @@
 package com.example.lockloop.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class PrefsRepository(private val context: Context) {
@@ -15,7 +18,7 @@ class PrefsRepository(private val context: Context) {
         val LATEST = stringPreferencesKey("latest_video_path")
     }
 
-    val flow = context.userPrefsDataStore.data.map { p ->
+    val flow: Flow<UserPrefs> = context.userPrefsDataStore.data.map { p ->
         UserPrefs(
             cast = p[Keys.CAST] ?: "a cute small standing Pomeranian in a blue shirt",
             background = p[Keys.BG] ?: "the Arc de Triomphe in Paris",
@@ -35,6 +38,7 @@ class PrefsRepository(private val context: Context) {
             e[Keys.DURATION] = u.durationSec
             e[Keys.GEN] = u.genTime
             e[Keys.APPLY] = u.applyTime
+            u.latestVideoPath?.let { e[Keys.LATEST] = it }
         }
     }
 
@@ -43,5 +47,4 @@ class PrefsRepository(private val context: Context) {
             e[Keys.LATEST] = path
         }
     }
-
 }
