@@ -4,7 +4,8 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 data class GenerateRequest(
-    val prompt: String,
+    val subject: String,
+    val place: String,
     val aspect: String,
     val durationSec: Int
 )

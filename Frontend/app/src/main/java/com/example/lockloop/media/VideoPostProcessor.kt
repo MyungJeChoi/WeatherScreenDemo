@@ -35,13 +35,11 @@ suspend fun transcodeToLockscreen(
         .setFlattenForSlowMotion(true)   // 슬로모션 클립 평탄화
         .build()
 
-    // ✅ v1.4.1: Composition은 Builder 로 생성해야 함
     val composition = Composition.Builder(
         listOf(EditedMediaItemSequence(listOf(edited)))
     ).build()
 
     val transformer = Transformer.Builder(context)
-//        .setRemoveAudio(true)                 // 안전하게 한 번 더 보장
         .setVideoMimeType(MimeTypes.VIDEO_H264)
         // .setContainerMimeType(MimeTypes.VIDEO_MP4) // 필요 시 지정
         .build()
@@ -51,7 +49,6 @@ suspend fun transcodeToLockscreen(
             cont.resume(output)
         }
 
-        // ✅ v1.4.1: exportResult 가 non-null
         override fun onError(
             composition: Composition,
             exportResult: ExportResult,

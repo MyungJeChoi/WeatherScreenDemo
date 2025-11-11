@@ -39,11 +39,12 @@ class GenerateVideoWorker(appContext: Context, params: WorkerParameters) :
         val api = retrofit.create(ApiService::class.java)
 
         // 프롬프트는 간단히 캐릭터+배경을 합쳐서 보냅니다(서버가 날씨 기반으로 보강).
-        val prompt = "${"$"}{u.cast} standing at ${"$"}{u.background}. Cinematic, loopable, minimal camera motion, no text."
+//        val prompt = "${"$"}{u.cast} standing at ${"$"}{u.background}. Cinematic, loopable, minimal camera motion, no text."
 
         val resp = api.generateVideo(
             GenerateRequest(
-                prompt = prompt,
+                subject = u.cast,
+                place = u.background,
                 aspect = u.aspect,
                 durationSec = u.durationSec
             )
