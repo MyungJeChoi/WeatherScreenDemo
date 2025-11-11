@@ -97,7 +97,6 @@ fun SettingsScreen(
                         genTime = genTime, applyTime = applyTime
                     )
                 )
-                messageState.value = "저장했습니다."
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text("저장") }
@@ -112,7 +111,6 @@ fun SettingsScreen(
                     )
                 )
                 onSaveAndSchedule()
-                messageState.value = "매일 생성/적용 스케줄을 등록했습니다."
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text("저장 & 매일 스케줄 등록") }
