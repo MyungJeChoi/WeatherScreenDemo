@@ -48,7 +48,7 @@ fun SettingsScreen(
     onGenerateNow: () -> Unit,
     onApplyNow: () -> Unit,
     messageState: MutableState<String?> = remember { mutableStateOf(null) },
-    isGenerating: MutableState<Boolean> = remember { mutableStateOf(false) }
+    isGenerating: MutableState<Boolean>
 ) {
     var cast by remember(ui.cast) { mutableStateOf(ui.cast) }
     var bg by remember(ui.background) { mutableStateOf(ui.background) }

@@ -21,6 +21,8 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkInfo
 import com.example.lockloop.data.PrefsRepository
 import com.example.lockloop.data.UserPrefs
 import com.example.lockloop.ui.SettingsScreen
@@ -140,12 +142,12 @@ class MainActivity : ComponentActivity() {
                     onGenerateNow = { 
                         isGenerating.value = true
                         runGenerateOnce(isGenerating)
-                        startActivity(Intent(this@MainActivity, SetWallpaperActivity::class.java))
                     },
                     onApplyNow = {
                         startActivity(Intent(this@MainActivity, SetWallpaperActivity::class.java))
                     },
-                    messageState = messageState
+                    messageState = messageState,
+                    isGenerating = isGenerating
                 )
             }
         }
@@ -269,21 +271,40 @@ class MainActivity : ComponentActivity() {
     /**
      * 즉시 한 번만 생성 워커 실행 (테스트 버튼용)
      */
-    private fun runGenerateOnce(isGenerating: androidx.compose.runtime.MutableState<Boolean>) {
+    private fun runGenerateOnce(isGenerating: MutableState<Boolean>) {
         val wm = WorkManager.getInstance(this)
-        val work = OneTimeWorkRequestBuilder<com.example.lockloop.workers.GenerateVideoWorker>().build()
-        wm.enqueue(work)
-        wm.getWorkInfoByIdLiveData(work.id).observe(this) { info ->
-        when (info.state) {
-            androidx.work.WorkInfo.State.SUCCEEDED -> {
-                isGenerating.value = false
+        val req = OneTimeWorkRequestBuilder<GenerateVideoWorker>()
+            // ✅ 네트워크 없으면 바로 실패하니 제약 걸어두기
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            // ✅ 즉시 실행 시도 (쿼터 없으면 일반 실행으로 폴백)
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .build()
+
+        // enqueue
+        wm.enqueue(req)
+
+        // 상태 관찰 → 로딩 끄기/성공·실패 메시지
+        wm.getWorkInfoByIdLiveData(req.id).observe(this) { info ->
+            when (info.state) {
+                WorkInfo.State.ENQUEUED  -> { /* 필요시 메시지 */ }
+                WorkInfo.State.RUNNING   -> { isGenerating.value = true }
+                WorkInfo.State.SUCCEEDED -> {
+                    isGenerating.value = false
+                    startActivity(Intent(this@MainActivity, SetWallpaperActivity::class.java))
+                    // 서버/다운로드/후처리까지 끝났음
+                    // messageState는 MainActivity에서 접근해야 하므로 필요시 이벤트로 전달
+                }
+                WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> {
+                    isGenerating.value = false
+                    // 실패 메시지 처리는 아래 3번에서 Worker 측에서 넘겨주는 outputData로 처리 가능
+                }
+                else -> {}
             }
-            androidx.work.WorkInfo.State.FAILED,
-            androidx.work.WorkInfo.State.CANCELLED -> {
-                isGenerating.value = false
-            }
-            else -> {}
         }
     }
-    }
+
 }

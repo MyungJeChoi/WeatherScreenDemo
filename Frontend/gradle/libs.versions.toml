@@ -14,6 +14,7 @@ media3      = "1.4.1"
 retrofit    = "2.11.0"
 okhttp      = "4.12.0"
 coroutines  = "1.8.1"
+moshi = "1.15.1"
 
 [libraries]
 androidx-compose-ui-text = { module = "androidx.compose.ui:ui-text" }
@@ -49,6 +50,10 @@ squareup-retrofit2             = { group = "com.squareup.retrofit2", name = "ret
 squareup-converter-moshi       = { group = "com.squareup.retrofit2", name = "converter-moshi", version.ref = "retrofit" }
 okhttp-okhttp                  = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-logging-interceptor     = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+moshi-kotlin = { module = "com.squareup.moshi:moshi-kotlin", version.ref = "moshi" }
+retrofit = { module = "com.squareup.retrofit2:retrofit", version = "2.11.0" }
+converter-moshi = { module = "com.squareup.retrofit2:converter-moshi", version.ref = "retrofit" }
+
 
 # Coroutines
 kotlinx-coroutines-android     = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
