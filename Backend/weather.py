@@ -18,18 +18,18 @@ def fetch_hourly(lat: float, lon: float, date: str):
     data = r.json()["hourly"]
     return data  # dict of lists
 
-def detect_transition(hourly, p_rain_hi=50, p_rain_lo=20):
-    # 매우 단순한 휴리스틱: 어떤 시각 H에서는 비 가능성↑, H+1에서는 ↓ 이면 'RAIN->CLEAR'
-    probs = hourly["precipitation_probability"]
-    for i in range(len(probs) - 1):
-        if probs[i] >= p_rain_hi and probs[i+1] <= p_rain_lo:
-            return ("RAIN", "CLEAR", i)
-    # 없으면 구름→맑음 후보
-    clouds = hourly["cloudcover"]
-    for i in range(len(clouds)-1):
-        if clouds[i] >= 70 and clouds[i+1] <= 30:
-            return ("CLOUDY", "SUNNY", i)
-    return ("SUNNY", "SUNNY", 0)
+# def detect_transition(hourly, p_rain_hi=50, p_rain_lo=20):
+#     # 매우 단순한 휴리스틱: 어떤 시각 H에서는 비 가능성↑, H+1에서는 ↓ 이면 'RAIN->CLEAR'
+#     probs = hourly["precipitation_probability"]
+#     for i in range(len(probs) - 1):
+#         if probs[i] >= p_rain_hi and probs[i+1] <= p_rain_lo:
+#             return ("RAIN", "CLEAR", i)
+#     # 없으면 구름→맑음 후보
+#     clouds = hourly["cloudcover"]
+#     for i in range(len(clouds)-1):
+#         if clouds[i] >= 70 and clouds[i+1] <= 30:
+#             return ("CLOUDY", "SUNNY", i)
+#     return ("SUNNY", "SUNNY", 0)
 
 
 RAIN_CODES = {51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99}

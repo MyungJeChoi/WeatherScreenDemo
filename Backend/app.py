@@ -43,29 +43,24 @@ def health():
 
 @app.post("/generateVideo", response_model=GenerateOut)
 def generate_video(req: GenerateIn, request: Request):
-    # compute prompt if not provided
-    if not req.prompt:
-        # fetch hourly weather and storyboard for *today* (KST)
-        today = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y-%m-%d")
-        hourly = fetch_hourly(req.lat, req.lon, today)
-        trans = detect_transition(hourly)
-        storyboard = build_storyboard(hourly)
-        subject = req.subject or "a cute small standing Pomeranian in a blue shirt"
-        place = req.place or "the Arc de Triomphe in Paris"
-        prompt = build_prompt(subject, place, storyboard)
-    else:
-        prompt = req.prompt
+    # fetch hourly weather and storyboard for *today* (KST)
+    today = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y-%m-%d")
+    hourly = fetch_hourly(req.lat, req.lon, today)
+    storyboard = build_storyboard(hourly)
+    subject = req.subject or "a cute small standing Pomeranian in a blue shirt"
+    place = req.place or "the Arc de Triomphe in Paris"
+    prompt = build_prompt(subject, place, storyboard)
 
     current_time = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = os.path.join("output", current_time)
     os.makedirs(out_dir, exist_ok=True)
 
-    t0 = time()
-    mp4 = generate_clip(prompt, resolution="1080p", aspect_ratio=req.aspect,
+    # t0 = time()
+    mp4_path = generate_clip(prompt, resolution="1080p", aspect_ratio=req.aspect,
                         duration=req.durationSec, out_path=os.path.join(out_dir, "out.mp4"))
     # print(f"Clip making time: {time()-t0:.2f}s")
 
-    out = make_lockscreen_friendly(mp4, dst=os.path.join(out_dir, "lockscreen.mp4"))
+    _ = make_lockscreen_friendly(mp4_path, dst=os.path.join(out_dir, "lockscreen.mp4"))
     # Build absolute download URL
     base = str(request.base_url).rstrip("/")
     return GenerateOut(jobId=current_time, downloadUrl=f"{base}/download/{current_time}")
