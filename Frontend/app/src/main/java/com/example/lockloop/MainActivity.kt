@@ -61,6 +61,8 @@ class MainActivity : ComponentActivity() {
             // DataStore Flow를 Compose에서 수명주기-안전하게 수집
             val u = prefs.flow.collectAsState(initial = UserPrefs()).value
 
+            val isGenerating = remember { mutableStateOf(false) }
+
             Surface(color = MaterialTheme.colorScheme.background) {
                 SettingsScreen(
                     ui = SettingsUiState(
@@ -135,7 +137,11 @@ class MainActivity : ComponentActivity() {
                     },
 
 
-                    onGenerateNow = { runGenerateOnce() },
+                    onGenerateNow = { 
+                        isGenerating.value = true
+                        runGenerateOnce(isGenerating)
+                        startActivity(Intent(this@MainActivity, SetWallpaperActivity::class.java))
+                    },
                     onApplyNow = {
                         startActivity(Intent(this@MainActivity, SetWallpaperActivity::class.java))
                     },
@@ -263,9 +269,21 @@ class MainActivity : ComponentActivity() {
     /**
      * 즉시 한 번만 생성 워커 실행 (테스트 버튼용)
      */
-    private fun runGenerateOnce() {
-        WorkManager.getInstance(this).enqueue(
-            OneTimeWorkRequestBuilder<GenerateVideoWorker>().build()
-        )
+    private fun runGenerateOnce(isGenerating: androidx.compose.runtime.MutableState<Boolean>) {
+        val wm = WorkManager.getInstance(this)
+        val work = OneTimeWorkRequestBuilder<com.example.lockloop.workers.GenerateVideoWorker>().build()
+        wm.enqueue(work)
+        wm.getWorkInfoByIdLiveData(work.id).observe(this) { info ->
+        when (info.state) {
+            androidx.work.WorkInfo.State.SUCCEEDED -> {
+                isGenerating.value = false
+            }
+            androidx.work.WorkInfo.State.FAILED,
+            androidx.work.WorkInfo.State.CANCELLED -> {
+                isGenerating.value = false
+            }
+            else -> {}
+        }
+    }
     }
 }

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from dotenv import load_dotenv
-from weather import fetch_hourly, detect_transition, build_storyboard
+from weather import fetch_hourly, build_storyboard
 from prompts import build_prompt
 from veo_client import generate_clip
 from postprocess import make_lockscreen_friendly
@@ -60,20 +60,20 @@ def generate_video(req: GenerateIn, request: Request):
                         duration=req.durationSec, out_path=os.path.join(out_dir, "out.mp4"))
     # print(f"Clip making time: {time()-t0:.2f}s")
 
-    _ = make_lockscreen_friendly(mp4_path, dst=os.path.join(out_dir, "lockscreen.mp4"))
+    _ = make_lockscreen_friendly(mp4_path, dst=os.path.join(out_dir, "lockscreen_raw.mp4"))
     # Build absolute download URL
     base = str(request.base_url).rstrip("/")
     return GenerateOut(jobId=current_time, downloadUrl=f"{base}/download/{current_time}")
 
 @app.get("/download/{job_id}")
 def download(job_id: str):
-    path = os.path.join("output", job_id, "lockscreen.mp4")
+    path = os.path.join("output", job_id, "lockscreen_raw.mp4")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path, media_type="video/mp4", filename="lockscreen.mp4")
+    return FileResponse(path, media_type="video/mp4", filename="lockscreen_raw.mp4")
 
 if __name__ == "__main__":
     # Optional: run with uvicorn when executed directly
     import uvicorn
-    port = int(os.getenv("PORT", "28410"))
+    port = int(os.getenv("PORT", "8750"))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

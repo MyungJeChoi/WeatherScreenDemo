@@ -47,7 +47,8 @@ fun SettingsScreen(
     onSaveAndSchedule: () -> Unit,
     onGenerateNow: () -> Unit,
     onApplyNow: () -> Unit,
-    messageState: MutableState<String?> = remember { mutableStateOf(null) }
+    messageState: MutableState<String?> = remember { mutableStateOf(null) },
+    isGenerating: MutableState<Boolean> = remember { mutableStateOf(false) }
 ) {
     var cast by remember(ui.cast) { mutableStateOf(ui.cast) }
     var bg by remember(ui.background) { mutableStateOf(ui.background) }
@@ -123,6 +124,27 @@ fun SettingsScreen(
         Button(onClick = onApplyNow, modifier = Modifier.fillMaxWidth()) {
             Text("지금 바로 적용(라이브 월페이퍼)")
         }
+    }
+
+    if (isGenerating.value) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("동영상 생성 중") },
+            text = { Text("서버에서 영상을 생성하고 있습니다.\n잠시만 기다려 주세요...") },
+            confirmButton = {}
+        )
+    }
+
+    val msg = messageState.value
+    if (msg != null) {
+        AlertDialog(
+            onDismissRequest = { messageState.value = null },
+            title = { Text("알림") },
+            text = { Text(msg) },
+            confirmButton = {
+                TextButton(onClick = { messageState.value = null }) { Text("확인") }
+            }
+        )
     }
 
     // Compose AlertDialog (팝업) — 버튼을 누르면 위에서 messageState에 메시지를 넣어 띄웁니다.

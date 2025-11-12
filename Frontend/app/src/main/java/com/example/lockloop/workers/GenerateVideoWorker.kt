@@ -27,12 +27,12 @@ class GenerateVideoWorker(appContext: Context, params: WorkerParameters) :
         val prefs = PrefsRepository(applicationContext)
         val u = prefs.flow.first()
 
-        // 1) Retrofit 생성 — 백엔드는 FastAPI 서버 (http://147.46.28.41:28410/)
+        // 1) Retrofit 생성 — 백엔드는 FastAPI 서버 (http://147.46.27.83:8750/)
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
         val ok = OkHttpClient.Builder().addInterceptor(logging).build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("http://147.46.28.41:28410/")
+            .baseUrl("http://147.46.27.83:8750/")
             .addConverterFactory(MoshiConverterFactory.create())
             .client(ok)
             .build()
@@ -64,7 +64,8 @@ class GenerateVideoWorker(appContext: Context, params: WorkerParameters) :
         // 3) 후처리(Media3 Transformer) → files/lock/lockscreen.mp4
         val outDir = File(applicationContext.filesDir, "lock").apply { mkdirs() }
         val out = File(outDir, "lockscreen.mp4")
-        transcodeToLockscreen(applicationContext, raw, out)
+        raw.copyTo(out, overwrite = true)
+        // transcodeToLockscreen(applicationContext, raw, out)
 
         // 4) 경로 저장 (라이브 월페이퍼 서비스가 이 경로를 읽어 재생)
         prefs.setLatestVideo(out.absolutePath)
