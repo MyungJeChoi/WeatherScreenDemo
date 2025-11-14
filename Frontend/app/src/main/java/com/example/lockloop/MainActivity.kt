@@ -29,7 +29,6 @@ import com.example.lockloop.ui.SettingsScreen
 import com.example.lockloop.ui.SettingsUiState
 import com.example.lockloop.util.NotificationHelper
 import com.example.lockloop.wallpaper.SetWallpaperActivity
-import com.example.lockloop.workers.ApplyWallpaperWorker
 import com.example.lockloop.workers.GenerateVideoWorker
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -73,68 +72,36 @@ class MainActivity : ComponentActivity() {
                         aspect = u.aspect,
                         duration = u.durationSec.toString(),
                         genTime = u.genTime,
-                        applyTime = u.applyTime,
                         latestVideoPath = u.latestVideoPath
                     ),
-                    onSave = { new ->
+                    onSaveAndSchedule = { new ->
                         lifecycleScope.launch {
-                            // 1) 시간 검증/표준화
-                            val gen   = normalizeTimeOrNull(new.genTime)
-                            val apply = normalizeTimeOrNull(new.applyTime)
-                            if (gen == null || apply == null) {
+                            // 1) 입력값 검증/정규화
+                            val gen = normalizeTimeOrNull(new.genTime)
+                            if (gen == null) {
                                 messageState.value = "시간 형식이 올바르지 않습니다. 예: 04:56 또는 0456"
                                 return@launch
                             }
 
-                            // 2) 길이 검증
-                            if (!isDurationValid(new.duration)) {
-                                messageState.value = "길이는 1~600 사이의 숫자여야 합니다."
+                            val dur = new.duration.toIntOrNull()
+                            if (dur == null || dur !in 1..10) {
+                                messageState.value = "길이는 1~8 사이의 숫자여야 합니다."
                                 return@launch
                             }
 
-                            // 3) 저장 (표준화된 HH:mm 사용)
-                            prefs.save(
-                                UserPrefs(
-                                    cast = new.cast,
-                                    background = new.background,
-                                    aspect = new.aspect,
-                                    durationSec = new.duration.toInt(),
-                                    genTime = gen,
-                                    applyTime = apply,
-                                    latestVideoPath = u.latestVideoPath
-                                )
-                            )
-                            messageState.value = "설정을 저장했습니다."
-                        }
-                    },
-
-                    onSaveAndSchedule = {
-                        lifecycleScope.launch {
-                            // 1) 방금 저장된 최신값을 가져온다 (SettingsScreen이 onSave(new) 호출 후라고 가정)
+                            // 2) prefs에 바로 저장 (현재 값 기반으로 업데이트)
                             val cur = prefs.flow.first()
+                            val updated = cur.copy(
+                                cast        = new.cast,
+                                background  = new.background,
+                                aspect      = new.aspect,
+                                durationSec = dur,
+                                genTime     = gen
+                            )
+                            prefs.save(updated)
 
-                            // 2) 검증/정규화
-                            val gen   = normalizeTimeOrNull(cur.genTime)
-                            val apply = normalizeTimeOrNull(cur.applyTime)
-                            val dur   = cur.durationSec
-
-                            if (gen == null || apply == null) {
-                                messageState.value = "시간 형식이 올바르지 않습니다. 예: 04:56 또는 0456"
-                                return@launch
-                            }
-                            if (dur !in 1..600) {
-                                messageState.value = "길이는 1~600 사이의 숫자여야 합니다."
-                                return@launch
-                            }
-
-                            // 3) 시간이 '0456' 같은 형식이라면 '04:56'으로 보정 저장
-                            if (gen != cur.genTime || apply != cur.applyTime) {
-                                prefs.save(cur.copy(genTime = gen, applyTime = apply))
-                            }
-
-                            // 4) 스케줄 등록
-                            scheduleDaily(messageState)
-                            messageState.value = "설정을 저장하고 스케줄을 등록했습니다."
+                            // 3) 방금 입력한 gen으로 스케줄 등록
+                            scheduleDaily(gen, messageState)
                         }
                     },
 
@@ -172,58 +139,58 @@ class MainActivity : ComponentActivity() {
 
     /**
      * 매일 '생성 시간'과 '적용 시간'에 맞춰 워커 등록.
-     * - 최소 초기 지연 15분(WorkManager 제약 하한)을 보장
-     * - 시간 파싱 실패 시 15분으로 대체하고 팝업으로 안내
+     * - 최소 초기 지연 5분(WorkManager 제약 하한)을 보장
+     * - 시간 파싱 실패 시 5분으로 대체하고 팝업으로 안내
      */
-    private fun scheduleDaily(messageState: MutableState<String?>) {
+    private fun scheduleDaily(
+        genTime: String,
+        messageState: MutableState<String?>
+    ) {
         lifecycleScope.launch {
-            // 현재 시각
             val now = java.time.LocalDateTime.now()
             val fmt = java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
 
-            // HH:mm 문자열을 LocalTime으로 (이미 onSave에서 표준화 저장했다고 가정)
             fun parseOrNull(s: String): LocalTime? =
                 runCatching { LocalTime.parse(s) }.getOrNull()
 
-            // 다음 실행 정보 계산 (최소 15분 규칙 적용)
             data class NextRunInfo(
-                val requestedText: String,               // 사용자가 저장한 문자열(HH:mm)
-                val scheduledAt: java.time.LocalDateTime, // 실제 첫 실행 시각
-                val delayMinutes: Long,                  // initialDelay
-                val adjustedByMinRule: Boolean           // 15분 룰 적용 여부
+                val requestedText: String,
+                val scheduledAt: java.time.LocalDateTime,
+                val delayMinutes: Long,
             )
 
             fun computeNextRun(requested: String): NextRunInfo? {
                 val t = parseOrNull(requested) ?: return null
-                // 오늘 그 시간
-                var target = now.withHour(t.hour).withMinute(t.minute).withSecond(0).withNano(0)
-                if (!target.isAfter(now)) target = target.plusDays(1) // 이미 지났으면 내일
-                var delay = Duration.between(now, target).toMinutes()
-                var adjusted = false
-                if (delay < 15) {
-                    delay = 15
-                    adjusted = true
+
+                var target = now.withHour(t.hour)
+                    .withMinute(t.minute)
+                    .withSecond(0)
+                    .withNano(0)
+
+                if (!target.isAfter(now)) {
+                    target = target.plusDays(1)
                 }
-                val scheduled = now.plusMinutes(delay)
+
+                var delay = Duration.between(now, target).toMinutes()
+                if (delay < 5) {
+                    delay = 5
+                    target = now.plusMinutes(delay)
+                }
+
                 return NextRunInfo(
                     requestedText = requested,
-                    scheduledAt = scheduled,
-                    delayMinutes = delay,
-                    adjustedByMinRule = adjusted
+                    scheduledAt = target,
+                    delayMinutes = delay
                 )
             }
 
-            val u = prefs.flow.first()
+            val genInfo = computeNextRun(genTime)
 
-            val genInfo = computeNextRun(u.genTime)
-            val applyInfo = computeNextRun(u.applyTime)
-
-            if (genInfo == null || applyInfo == null) {
+            if (genInfo == null) {
                 messageState.value = "시간 형식이 올바르지 않습니다. (예: 04:56)"
                 return@launch
             }
 
-            // Work 요청 만들기
             val gen = PeriodicWorkRequestBuilder<GenerateVideoWorker>(
                 1, TimeUnit.DAYS
             )
@@ -235,46 +202,21 @@ class MainActivity : ComponentActivity() {
                 )
                 .build()
 
-            val apply = PeriodicWorkRequestBuilder<ApplyWallpaperWorker>(
-                1, TimeUnit.DAYS
-            )
-                .setInitialDelay(applyInfo.delayMinutes, TimeUnit.MINUTES)
-                .build()
-
             val wm = WorkManager.getInstance(this@MainActivity)
-
-            // 예약 갱신 필요 시 사용
             wm.cancelUniqueWork("gen_daily")
-            wm.cancelUniqueWork("apply_daily")
-
             wm.enqueueUniquePeriodicWork(
                 "gen_daily",
                 ExistingPeriodicWorkPolicy.UPDATE,
                 gen
             )
-            wm.enqueueUniquePeriodicWork(
-                "apply_daily",
-                ExistingPeriodicWorkPolicy.UPDATE,
-                apply
-            )
 
-            // 사용자에게 실제 예약 결과를 명확히 보여주기
             val genMsg = buildString {
-                append("생성: 요청 ").append(genInfo.requestedText)
+                append("생성+적용 요청 ").append(genInfo.requestedText)
                 append(" → 다음 실행 ").append(genInfo.scheduledAt.format(fmt))
-                append(" (지연 ").append(genInfo.delayMinutes).append("분")
-                if (genInfo.adjustedByMinRule) append(", 최소 15분 규칙 적용")
-                append(")")
-            }
-            val applyMsg = buildString {
-                append("적용: 요청 ").append(applyInfo.requestedText)
-                append(" → 다음 실행 ").append(applyInfo.scheduledAt.format(fmt))
-                append(" (지연 ").append(applyInfo.delayMinutes).append("분")
-                if (applyInfo.adjustedByMinRule) append(", 최소 15분 규칙 적용")
-                append(")")
+                append(" (지연 ").append(genInfo.delayMinutes).append("분, 최소 5분 규칙 적용)")
             }
 
-            messageState.value = "스케줄을 등록했습니다.\n\n$genMsg\n$applyMsg"
+            messageState.value = "스케줄을 등록했습니다.\n\n$genMsg"
         }
     }
     /**

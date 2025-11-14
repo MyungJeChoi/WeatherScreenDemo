@@ -14,7 +14,6 @@ class PrefsRepository(private val context: Context) {
         val ASPECT = stringPreferencesKey("aspect")
         val DURATION = intPreferencesKey("duration")
         val GEN = stringPreferencesKey("gen_time")
-        val APPLY = stringPreferencesKey("apply_time")
         val LATEST = stringPreferencesKey("latest_video_path")
     }
 
@@ -25,7 +24,6 @@ class PrefsRepository(private val context: Context) {
             aspect = p[Keys.ASPECT] ?: "9:16",
             durationSec = p[Keys.DURATION] ?: 8,
             genTime = p[Keys.GEN] ?: "11:29",
-            applyTime = p[Keys.APPLY] ?: "03:30",
             latestVideoPath = p[Keys.LATEST]
         )
     }
@@ -37,7 +35,6 @@ class PrefsRepository(private val context: Context) {
             e[Keys.ASPECT] = u.aspect
             e[Keys.DURATION] = u.durationSec
             e[Keys.GEN] = u.genTime
-            e[Keys.APPLY] = u.applyTime
             u.latestVideoPath?.let { e[Keys.LATEST] = it }
         }
     }

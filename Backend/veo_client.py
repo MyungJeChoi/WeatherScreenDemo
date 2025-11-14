@@ -17,6 +17,9 @@ def generate_clip(prompt: str, refs: list = None,
     )
     
     print("start generating video...")
+    # print("sleep start for 10 minutes")
+    # time.sleep(600)
+    # print("sleep end")
 
     if refs:
         cfg.reference_images = [
@@ -42,9 +45,11 @@ def generate_clip(prompt: str, refs: list = None,
     while not operation.done:
         time.sleep(10)
         operation = client.operations.get(operation)
-
+    print("operation done")
     video = operation.response.generated_videos[0]
+    print("generated_videos[0] done")
     client.files.download(file=video.video)
+    print("download done")
     video.video.save(out_path)
     print(f"video saved to: {out_path}")
     return out_path

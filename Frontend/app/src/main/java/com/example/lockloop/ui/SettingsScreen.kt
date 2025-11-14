@@ -27,7 +27,6 @@ data class SettingsUiState(
     val aspect: String,
     val duration: String,
     val genTime: String,
-    val applyTime: String,
     val latestVideoPath: String?
 )
 
@@ -36,15 +35,13 @@ data class EditableSettings(
     var background: String,
     var aspect: String,
     var duration: String,
-    var genTime: String,
-    var applyTime: String
+    var genTime: String
 )
 
 @Composable
 fun SettingsScreen(
     ui: SettingsUiState,
-    onSave: (EditableSettings) -> Unit,
-    onSaveAndSchedule: () -> Unit,
+    onSaveAndSchedule: (EditableSettings) -> Unit,
     onGenerateNow: () -> Unit,
     onApplyNow: () -> Unit,
     messageState: MutableState<String?> = remember { mutableStateOf(null) },
@@ -55,7 +52,6 @@ fun SettingsScreen(
     var aspect by remember(ui.aspect) { mutableStateOf(ui.aspect) }
     var duration by remember(ui.duration) { mutableStateOf(ui.duration) }
     var genTime by remember(ui.genTime) { mutableStateOf(ui.genTime) }
-    var applyTime by remember(ui.applyTime) { mutableStateOf(ui.applyTime) }
 
     Column(Modifier.padding(16.dp)) {
         OutlinedTextField(
@@ -76,42 +72,39 @@ fun SettingsScreen(
         OutlinedTextField(
             value = duration, onValueChange = { duration = it },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(), label = { Text("길이(초)") }
+            modifier = Modifier.fillMaxWidth(), label = { Text("길이(초) - 1~8초") }
         )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = genTime, onValueChange = { genTime = it },
-            modifier = Modifier.fillMaxWidth(), label = { Text("생성 예약 시간 (HH:mm)") }
-        )
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = applyTime, onValueChange = { applyTime = it },
-            modifier = Modifier.fillMaxWidth(), label = { Text("배경화면 설정 예약 시간 (HH:mm)") }
+            modifier = Modifier.fillMaxWidth(), label = { Text("생성 예약 시간 (HH:mm) - 최소 5분 이후") }
         )
 
         Spacer(Modifier.height(16.dp))
+//        Button(
+//            onClick = {
+//                onSave(
+//                    EditableSettings(
+//                        cast = cast, background = bg, aspect = aspect, duration = duration,
+//                        genTime = genTime
+//                    )
+//                )
+//            },
+//            modifier = Modifier.fillMaxWidth()
+//        ) { Text("저장") }
+//
+//        Spacer(Modifier.height(8.dp))
         Button(
             onClick = {
-                onSave(
+                onSaveAndSchedule(
                     EditableSettings(
-                        cast = cast, background = bg, aspect = aspect, duration = duration,
-                        genTime = genTime, applyTime = applyTime
+                        cast = cast,
+                        background = bg,
+                        aspect = aspect,
+                        duration = duration,
+                        genTime = genTime
                     )
                 )
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("저장") }
-
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = {
-                onSave(
-                    EditableSettings(
-                        cast = cast, background = bg, aspect = aspect, duration = duration,
-                        genTime = genTime, applyTime = applyTime
-                    )
-                )
-                onSaveAndSchedule()
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text("저장 & 매일 스케줄 등록") }
