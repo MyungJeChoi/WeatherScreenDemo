@@ -242,11 +242,20 @@ class MainActivity : ComponentActivity() {
                 .build()
 
             val wm = WorkManager.getInstance(this@MainActivity)
+
+            // 예약 갱신 필요 시 사용
+            wm.cancelUniqueWork("gen_daily")
+            wm.cancelUniqueWork("apply_daily")
+
             wm.enqueueUniquePeriodicWork(
-                "gen_daily", ExistingPeriodicWorkPolicy.UPDATE, gen
+                "gen_daily",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                gen
             )
             wm.enqueueUniquePeriodicWork(
-                "apply_daily", ExistingPeriodicWorkPolicy.UPDATE, apply
+                "apply_daily",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                apply
             )
 
             // 사용자에게 실제 예약 결과를 명확히 보여주기

@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 import java.net.SocketTimeoutException
 import java.io.IOException
+import android.content.Intent
 
 /**
  * 1) 백엔드에 '생성' 요청
@@ -30,6 +31,10 @@ class GenerateVideoWorker(
     appContext: Context,
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
+
+    companion object {
+        const val ACTION_REFRESH_WALLPAPER = "com.example.lockloop.action.REFRESH_WALLPAPER"
+    }
 
     override suspend fun doWork(): Result {
         Log.i("GenerateVideoWorker", "doWork 시작됨")
@@ -124,6 +129,13 @@ class GenerateVideoWorker(
                 // 재처리 제거안: 그대로 복사
                 raw.copyTo(out, overwrite = true)
                 // (조건부 재처리 쓰실 거면 여기서 transcodeToLockscreen 호출)
+
+                applicationContext.sendBroadcast(
+                    Intent(ACTION_REFRESH_WALLPAPER).apply {
+                        setPackage(applicationContext.packageName)
+                        putExtra("path", out.absolutePath)  // 새로 받은 mp4 경로
+                    }
+                )
 
                 prefs.setLatestVideo(out.absolutePath)
                 Log.i("GenerateVideoWorker", "최신 비디오 경로 저장됨")
