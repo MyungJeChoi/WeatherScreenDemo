@@ -10,16 +10,21 @@ import com.example.weatherdemo.R
 import com.example.lockloop.util.NotificationHelper
 import com.example.lockloop.wallpaper.SetWallpaperActivity
 
+/**
+ * 예약된 '배경화면 설정' 시간에 실행되어
+ * 사용자가 한 번 터치해서 라이브 월페이퍼를 적용할 수 있도록
+ * 알림을 띄웁니다. (보안 정책상 자동 적용은 불가)
+ */
 class ApplyWallpaperWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
-        // 사용자 확인이 필요한 화면을 여는 알림 표시
-        NotificationHelper.ensureChannel(applicationContext)
         val pi = PendingIntent.getActivity(
             applicationContext, 0,
             Intent(applicationContext, SetWallpaperActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        NotificationHelper.ensureChannel(applicationContext)
         val n = NotificationCompat.Builder(applicationContext, NotificationHelper.CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("새 잠금화면 준비 완료")

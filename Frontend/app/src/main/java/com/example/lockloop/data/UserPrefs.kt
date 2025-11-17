@@ -6,6 +6,5 @@ data class UserPrefs(
     val aspect: String = "9:16",
     val durationSec: Int = 8,
     val genTime: String = "11:29",   // HH:mm
-    val applyTime: String = "03:30", // HH:mm
     val latestVideoPath: String? = null // 후처리된 mp4 경로
 )

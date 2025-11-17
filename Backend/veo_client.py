@@ -7,10 +7,19 @@ def generate_clip(prompt: str, refs: list = None,
                   first_image=None, last_image=None,
                   resolution="1080p", aspect_ratio="9:16",
                   duration=8, out_path="out.mp4"):
-    client = genai.Client()  # GEMINI_API_KEY from env
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("Missing API key: set GOOGLE_API_KEY or GEMINI_API_KEY in .env")
+
+    client = genai.Client(api_key=api_key) 
     cfg = types.GenerateVideosConfig(
         resolution=resolution, aspect_ratio=aspect_ratio, duration_seconds=str(duration)
     )
+    
+    print("start generating video...")
+    # print("sleep start for 10 minutes")
+    # time.sleep(600)
+    # print("sleep end")
 
     if refs:
         cfg.reference_images = [
@@ -32,12 +41,15 @@ def generate_clip(prompt: str, refs: list = None,
             prompt=prompt,
             config=cfg
         )
-
+    
     while not operation.done:
         time.sleep(10)
         operation = client.operations.get(operation)
-
+    print("operation done")
     video = operation.response.generated_videos[0]
+    print("generated_videos[0] done")
     client.files.download(file=video.video)
+    print("download done")
     video.video.save(out_path)
+    print(f"video saved to: {out_path}")
     return out_path
